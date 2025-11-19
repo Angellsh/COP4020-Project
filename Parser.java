@@ -398,7 +398,7 @@ public final class Parser {
 
         Ast.Expression left = parseEqualityExpression();
 
-        while (match("OR") || match("AND") || match("&&"))  {
+        while (match("OR") || match("AND"))  {
             String operator = tokens.get(-1).getLiteral();
             Ast.Expression right = parseEqualityExpression();
             left = new Ast.Expression.Binary(operator, left, right);
