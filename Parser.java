@@ -58,6 +58,7 @@ public final class Parser {
     public Ast.Field parseField() throws ParseException {
         //field ::= 'LET' 'CONST'? identifier ('=' expression)? ';'
         boolean constant = false;
+        String typename =null;
         String name;
         if(match("CONST")) {
             constant = true;
@@ -68,14 +69,26 @@ public final class Parser {
         else {
             throw new ParseException("IDENTIFIER is missing", handleIndex());
         }
+        if(match(":")){
+            if(match(Token.Type.IDENTIFIER)){
+                typename = tokens.get(-1).getLiteral();
+            }
+            else throw new ParseException("Identifier is missing", handleIndex());
+
+        }
+        else {
+            throw new ParseException("Type must be declared.", handleIndex());
+        }
+
         if(match("=")){
             Ast.Expression expr = parseExpression();
-            if (match(";")){
-                return new Ast.Field(name, constant, Optional.of(expr));
+            if (match(";") && typename!=null){
+                return new Ast.Field(name, typename, constant, Optional.of(expr));
+
             }
         }
         if (match(";"))
-            return new Ast.Field(name, constant, Optional.empty());
+            return new Ast.Field(name, typename, constant, Optional.empty());
         throw new ParseException("missing semicolon", handleIndex());
     }
 
@@ -89,7 +102,11 @@ public final class Parser {
             //DEF name() DO stmt; END␊LET name = expr;
             List<Ast.Statement> stmnts = new ArrayList<>();
             List<String> params = new ArrayList<>();
-            String name;
+            List<String> types = new ArrayList<>();
+
+
+        String name;
+        String returnType = null;
 
             if (match(Token.Type.IDENTIFIER)){
                 name = tokens.get(-1).getLiteral();
@@ -97,8 +114,28 @@ public final class Parser {
                 if (match("(")){
                     if(match(Token.Type.IDENTIFIER)){ //optional
                         params.add(tokens.get(-1).getLiteral());
+
+                        if(match(":")){
+                            if (match(Token.Type.IDENTIFIER)) {
+                                types.add(tokens.get(-1).getLiteral());
+                            }
+                            else
+                                throw new ParseException("Type is missing", handleIndex());
+
+                        }
+                        else
+                            throw new ParseException("Type must be declared.", handleIndex());
+
                         while(match(",") && match(Token.Type.IDENTIFIER)){
                             params.add(tokens.get(-1).getLiteral());
+                            if(match(":")){
+                                if (match(Token.Type.IDENTIFIER)) {
+                                    types.add(tokens.get(-1).getLiteral());
+                                }
+                                else
+                                    throw new ParseException("Type is missing", handleIndex());
+
+                            }
                         }
                     }
                     if(!match(")")){
@@ -111,11 +148,19 @@ public final class Parser {
             }
             else
                 throw new ParseException("Method name is missing", handleIndex());
+            if(match((":"))){
+                if (match(Token.Type.IDENTIFIER))
+                    returnType = tokens.get(-1).getLiteral();
+            }
 
             if (match("DO")){
                 while (!match("END") && tokens.has(0))
                     stmnts.add(parseStatement());
-                return new Ast.Method(name, params, stmnts );
+                if(returnType == null)
+                    return new Ast.Method(name, params, types, Optional.empty(), stmnts);
+                else
+                    return new Ast.Method(name, params, types, Optional.of(returnType), stmnts);
+
             }
             else
                 throw new ParseException("'DO' is missing", handleIndex());
@@ -184,13 +229,29 @@ public final class Parser {
        // 'LET' identifier ('=' expression)? ';' |
         if (match(Token.Type.IDENTIFIER)) {
             String name = tokens.get(-1).getLiteral();
+            String typename = null;
+            if(match(":")){
+                if (match(Token.Type.IDENTIFIER)){
+                    typename= tokens.get(-1).getLiteral();
+                }
+                else
+                    throw new ParseException("Type is missing", handleIndex());
+
+            }
             if(match("=")) {
                 Ast.Expression right = parseExpression();
                 if (match(";"))
-                    return new Ast.Statement.Declaration(name, Optional.of(right));
-            }
+                    if (typename!=null)
+                        return new Ast.Statement.Declaration(name, Optional.of(typename), Optional.of(right));
+                    else
+                        return new Ast.Statement.Declaration(name, Optional.empty(), Optional.of(right)); }
             if (match(";"))
-                return new Ast.Statement.Declaration(name, Optional.empty());
+                if (typename!=null)
+                    return new Ast.Statement.Declaration(name, Optional.of(typename), Optional.empty());
+                else
+                    return new Ast.Statement.Declaration(name, Optional.empty(), Optional.empty());
+
+
         }
         throw new ParseException("Invalid declaration.", handleIndex());
     }
