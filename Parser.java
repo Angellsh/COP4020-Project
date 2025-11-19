@@ -306,7 +306,7 @@ public final class Parser {
                      st1 = new Ast.Statement.Declaration(id, Optional.of(expr1));
                 }
                 else {
-                    throw new ParseException("= missing", handleIndex());
+                    throw new ParseException(" = missing", handleIndex());
                 }
             }
             else {
