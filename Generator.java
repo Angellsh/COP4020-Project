@@ -76,7 +76,7 @@ public final class Generator implements Ast.Visitor<Void> {
         }
         print(ast.getVariable().getType().getJvmName());
         print(" ");
-        print(ast.getName());
+        print(ast.getVariable().getJvmName());
 
 
         if(ast.getValue().isPresent()){
@@ -94,7 +94,7 @@ public final class Generator implements Ast.Visitor<Void> {
         //newline(indent);
         print(ast.getFunction().getType().getJvmName());
         print(" ");
-        print(ast.getFunction().getName());
+        print(ast.getFunction().getJvmName());
         if (ast.getFunction().getName().equals("main"))
             FuncReturns = false;
 
@@ -107,19 +107,22 @@ public final class Generator implements Ast.Visitor<Void> {
             print(ast.getParameters().get(i));
         }
         print(") {");
-        indent++;
         for (int i=0; i<ast.getStatements().size(); i++){
+            indent++;
             newline(indent);
             print(ast.getStatements().get(i));
             if (ast.getStatements().get(i) instanceof Ast.Statement.Return)
                 FuncReturns=true;
+            indent--;
         }
         if (!FuncReturns) {
+            indent++;
             newline(indent);
             print("return 0;");
+            indent--;
+
         }
 
-        indent--;
         newline(indent);
         print("}");
      //  indent--;
@@ -138,9 +141,9 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Statement.Declaration ast) {
-        print(ast.getVariable().getType().getJvmName()); //fix it
+        print(ast.getVariable().getType().getJvmName());
         print(" ");
-        print(ast.getName());
+        print(ast.getVariable().getJvmName());
         if(ast.getValue().isPresent()) {
             print(" = ");
             print(ast.getValue().get());
@@ -205,10 +208,11 @@ public final class Generator implements Ast.Visitor<Void> {
 
         print("for ( ");
         if (ast.getInitialization() != null){
-            print(ast.getInitialization());
+            visit(ast.getInitialization());
             print(" ");
-        }else {
-        print("; ");
+        }
+        else {
+            print("; ");
         }
         print(ast.getCondition());
         print("; ");
@@ -239,25 +243,17 @@ public final class Generator implements Ast.Visitor<Void> {
         print("(");
         print(ast.getCondition());
         print(")");
-        if (!ast.getStatements().isEmpty()){
-            print(" {");
-            indent++;
+        print(" {");
 
-        }
-        else{
-            print(";");
-            return null;
-        }
+
         for (int i =0; i< ast.getStatements().size();i++){
+            indent++;
             newline(indent);
             print(ast.getStatements().get(i));
-            //print(";");
-        }
-        if (!ast.getStatements().isEmpty()) {
             indent--;
-            newline(indent);
-            print("}");
         }
+        newline(indent);
+        print("}");
 
         return null;
     }
@@ -296,7 +292,12 @@ public final class Generator implements Ast.Visitor<Void> {
     public Void visit(Ast.Expression.Binary ast) {
         print(ast.getLeft());
         print(" ");
-        print(ast.getOperator());
+        if (ast.getOperator().equals("AND"))
+            print("&&");
+        else if (ast.getOperator().equals("OR"))
+            print("||");
+        else
+            print(ast.getOperator());
         print(" ");
         print(ast.getRight());
 
@@ -310,7 +311,7 @@ public final class Generator implements Ast.Visitor<Void> {
             print(ast.getReceiver().get());
             print(".");
         }
-        print(ast.getName());
+        print(ast.getVariable().getJvmName());
         return null;
     }
 

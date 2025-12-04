@@ -27,23 +27,20 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Source ast) {
-        ast.getFields().forEach(this::visit);
-        ast.getMethods().forEach(this::visit);
-
-
         try{
-
+            ast.getFields().forEach(this::visit);
+            ast.getMethods().forEach(this::visit);
             if (scope.lookupFunction("main", 0).getType().equals(Environment.Type.INTEGER)){
+
                 return null;
             }
-
+            else {
+                throw new RuntimeException("Main does not return an Integer return type.");
+            }
         }
         catch(Exception e){
-
             throw new RuntimeException("Main is not defined in this scope.");
         }
-
-        return null;
 
     }
 
@@ -76,6 +73,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
             if(ast.getReturnTypeName().isPresent()){
                 scope.defineFunction(ast.getName(), ast.getName(), ParamTypes, Environment.getType(ast.getReturnTypeName().get()),  args  -> { return Environment.NIL;});
+
                 ast.setFunction(scope.lookupFunction(ast.getName(), ParamTypes.size()));
             }
 
@@ -95,14 +93,14 @@ public final class Analyzer implements Ast.Visitor<Void> {
                visit(ast.getStatements().get(i));
                if (ast.getStatements().get(i) instanceof Ast.Statement.Return){
                    if(ast.getReturnTypeName().isEmpty()){
-                       throw new RuntimeException();
+                       throw new RuntimeException("Return type is undefined");
                    }
 
 
                    Environment.Type returntype = ((Ast.Statement.Return) ast.getStatements().get(i)).getValue().getType();
 
                    // if(!(Environment.getType(ast.getReturnTypeName().get()).equals(returntype))){
-                    if(!scope.lookupVariable(ast.getName()).getType().equals(returntype)){
+                    if(!scope.lookupFunction(ast.getName(), ast.getParameters().size()).getType().equals(returntype)){
                        throw new RuntimeException("Return types differ.");
                    }
                }
@@ -111,22 +109,28 @@ public final class Analyzer implements Ast.Visitor<Void> {
            throw new RuntimeException(e);
        }
        finally{
-           scope = scope.getParent();
+            scope = scope.getParent();
        }
-       return null;
+
+        return null;
        }
 
     @Override
     public Void visit(Ast.Statement.Expression ast) {
-        visit(ast.getExpression());
-        return null;
+        if(ast.getExpression() instanceof Ast.Expression.Function) {
+            visit(ast.getExpression());
+            return null;
+        }
+        throw new RuntimeException("The expression is not an instance of a function.");
     }
 
     @Override
+
     public Void visit(Ast.Statement.Declaration ast) {
 
         try{
             if (ast.getValue().isPresent()) {
+
                 if (ast.getTypeName().isPresent()) {
                     requireAssignable(Environment.getType(ast.getTypeName().get()), ast.getValue().get().getType());
                 }
@@ -214,7 +218,20 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Statement.For ast) {
-        throw new UnsupportedOperationException();  // TODO
+        try {
+            visit(ast.getInitialization());
+
+            visit(ast.getCondition()); //breaks here
+            requireAssignable( Environment.Type.BOOLEAN, ast.getCondition().getType());
+            visit(ast.getIncrement());
+            if (ast.getStatements().isEmpty())
+                throw new RuntimeException("List of statements is empty");
+            ast.getStatements().forEach(this ::visit);
+            return null;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @Override
@@ -253,8 +270,9 @@ public final class Analyzer implements Ast.Visitor<Void> {
         }else if (ast.getLiteral() instanceof BigDecimal) {
             if (((BigDecimal) ast.getLiteral()).compareTo( BigDecimal.valueOf(Double.MAX_VALUE)) > 0){
                 throw new RuntimeException("Decimal exceeds the limits");
-
             }
+            ast.setType(Environment.Type.DECIMAL);
+
         }else if (ast.getLiteral() instanceof Boolean) {
                 ast.setType(Environment.Type.BOOLEAN);
 
@@ -284,47 +302,48 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Expression.Binary ast) {
-        visit(ast.getLeft());
+        try {
+            visit(ast.getLeft());
+            visit(ast.getRight());
 
-        visit(ast.getRight());
+            if (ast.getOperator().equals("OR") || ast.getOperator().equals("AND")) {
+                requireAssignable( Environment.Type.BOOLEAN, ast.getLeft().getType());
+                requireAssignable(Environment.Type.BOOLEAN, ast.getRight().getType());
+                ast.setType(Environment.Type.BOOLEAN);
+            } else if (Set.of("<", ">", "<=", ">=", "!=", "==").contains(ast.getOperator())) {
 
-        if (ast.getOperator().equals("OR") ||  ast.getOperator().equals("AND") ){
-            requireAssignable(ast.getLeft().getType(), Environment.Type.BOOLEAN);
-            requireAssignable(ast.getRight().getType(), Environment.Type.BOOLEAN);
-            ast.setType(Environment.Type.BOOLEAN);
-        }
-        else if (Set.of("<", ">", "<=", ">=", "!=", "==").contains(ast.getOperator())) {
-            requireAssignable(ast.getLeft().getType(), Environment.Type.COMPARABLE);
-            requireAssignable(ast.getRight().getType(), Environment.Type.COMPARABLE);
-            ast.setType(Environment.Type.BOOLEAN);
+                requireAssignable(Environment.Type.COMPARABLE, ast.getLeft().getType());
+                requireAssignable( Environment.Type.COMPARABLE, ast.getRight().getType());
+                ast.setType(Environment.Type.BOOLEAN);
 
-        }
-        else if (ast.getOperator().equals( "+") &&
-                ((ast.getRight().getType().equals(Environment.Type.STRING)
-                || ast.getLeft().getType().equals(Environment.Type.STRING)))) {
+            } else if (ast.getOperator().equals("+") &&
+                    ((ast.getRight().getType().equals(Environment.Type.STRING)
+                            || ast.getLeft().getType().equals(Environment.Type.STRING)))) {
+
 
                 ast.setType(Environment.Type.STRING);
 
 
-        }
-        else if (Set.of("-", "*", "/", "+").contains(ast.getOperator())){
+            } else if (Set.of("-", "*", "/", "+").contains(ast.getOperator())) {
 
-            if (ast.getRight().getType().equals(Environment.Type.INTEGER)){
-                requireAssignable(ast.getLeft().getType(), Environment.Type.INTEGER);
-                ast.setType(Environment.Type.INTEGER);
+                if (ast.getRight().getType().equals(Environment.Type.INTEGER)) {
+                    requireAssignable(Environment.Type.INTEGER, ast.getLeft().getType());
+                    ast.setType(Environment.Type.INTEGER);
+
+                } else if (ast.getRight().getType().equals(Environment.Type.DECIMAL)) {
+                    requireAssignable( Environment.Type.DECIMAL, ast.getLeft().getType());
+                    ast.setType(Environment.Type.DECIMAL);
+
+                } else {
+                    throw new RuntimeException("Invalid operator's use.");
+                }
+                return null;
 
             }
-            else if(ast.getRight().getType().equals(Environment.Type.DECIMAL)) {
-                requireAssignable(ast.getLeft().getType(), Environment.Type.DECIMAL);
-                ast.setType(Environment.Type.DECIMAL);
-
-            }
-            else
-                throw new RuntimeException("Invalid operator's use.");
             return null;
-
+        } catch (RuntimeException e) {
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     @Override

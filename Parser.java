@@ -57,6 +57,8 @@ public final class Parser {
      */
     public Ast.Field parseField() throws ParseException {
         //field ::= 'LET' 'CONST'? identifier ('=' expression)? ';'
+        if (match("LET")){}
+
         boolean constant = false;
         String typename =null;
         String name;
@@ -69,6 +71,7 @@ public final class Parser {
         else {
             throw new ParseException("IDENTIFIER is missing", handleIndex());
         }
+
         if(match(":")){
             if(match(Token.Type.IDENTIFIER)){
                 typename = tokens.get(-1).getLiteral();
@@ -77,7 +80,7 @@ public final class Parser {
 
         }
         else {
-            throw new ParseException("Type must be declared.", handleIndex());
+            throw new ParseException("Field type must be declared.", handleIndex());
         }
 
         if(match("=")){
@@ -104,6 +107,7 @@ public final class Parser {
             List<String> params = new ArrayList<>();
             List<String> types = new ArrayList<>();
 
+        if (match("DEF")){}
 
         String name;
         String returnType = null;
@@ -124,7 +128,7 @@ public final class Parser {
 
                         }
                         else
-                            throw new ParseException("Type must be declared.", handleIndex());
+                            throw new ParseException("Method type must be declared.", handleIndex());
 
                         while(match(",") && match(Token.Type.IDENTIFIER)){
                             params.add(tokens.get(-1).getLiteral());
@@ -303,15 +307,16 @@ public final class Parser {
                 id =  tokens.get(-1).getLiteral();
                 if(match("=")){
                     Ast.Expression expr1 = parseExpression();
-                     st1 = new Ast.Statement.Declaration(id, Optional.of(expr1));
+                    st1 = new  Ast.Statement.Assignment( new Ast.Expression.Access(Optional.empty(), id), expr1);
+                    // st1 = new Ast.Statement.Declaration(id, Optional.of(expr1));
                 }
                 else {
                     throw new ParseException(" = missing", handleIndex());
                 }
             }
-            else {
-                throw new ParseException("Missing identifier", handleIndex());
-            }
+         //   else {
+        //        throw new ParseException("Missing identifier", handleIndex());
+          //  }
 
         }
         if(!match(";")){
@@ -327,10 +332,13 @@ public final class Parser {
                 throw new ParseException("Missing equal sign", handleIndex());
             }
             Ast.Expression expr3 = parseExpression();
-            st2 = new Ast.Statement.Declaration(id2, Optional.of(expr3));
-            if (!match(")")) {
-                throw new ParseException("Missing semicolon", handleIndex());
-            }
+            st2 = new  Ast.Statement.Assignment( new Ast.Expression.Access(Optional.empty(), id2), expr3);
+
+        //    st2 = new Ast.Statement.Declaration(id2, Optional.of(expr3));
+
+        }
+        if (!match(")")) {
+            throw new ParseException("Missing semicolon", handleIndex());
         }
         List<Ast.Statement> stmnts = new ArrayList<>();
         while(!match("END") ){
@@ -379,7 +387,11 @@ public final class Parser {
      * {@code RETURN}.
      */
     public Ast.Statement.Return parseReturnStatement() throws ParseException {
-        return new Ast.Statement.Return(parseExpression());
+        Ast.Expression expr = parseExpression();
+        if (!match(";"))
+            throw new ParseException("Missing semicolon", handleIndex());
+
+        return new Ast.Statement.Return(expr);
     }
 
     /**
@@ -387,7 +399,7 @@ public final class Parser {
      */
     public Ast.Expression parseExpression() throws ParseException {
         Ast.Expression expr =  parseLogicalExpression();
-       return expr;
+        return expr;
     }
 
     /**
@@ -397,12 +409,28 @@ public final class Parser {
     public Ast.Expression parseLogicalExpression() throws ParseException {
 
         Ast.Expression left = parseEqualityExpression();
-
-        while (match("OR") || match("AND"))  {
+        while (match("OR") || match("AND")
+                || match("&") || match("|"))  {
             String operator = tokens.get(-1).getLiteral();
+
+
+            if (tokens.get(-1).getLiteral().equals("&")){
+                if (match("&")) {
+                    operator = "AND";
+                }
+            }
+            else if (tokens.get(-1).getLiteral().equals("|")){
+                if ( match("|")) {
+                    operator = "OR";
+                }
+            }
             Ast.Expression right = parseEqualityExpression();
             left = new Ast.Expression.Binary(operator, left, right);
             }
+
+       // if (match("&&") || match( "||")) { //temporary
+        //    throw new ParseException("Incorrect operator", handleIndex());
+      //  }
 
         return left;
     }
@@ -573,7 +601,6 @@ public final class Parser {
 
             if (match("TRUE"))
             {
-
                 return new Ast.Expression.Literal(true);
             } else if (match("FALSE")) {
                 return new Ast.Expression.Literal(false);

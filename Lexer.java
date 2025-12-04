@@ -228,6 +228,7 @@ public final class Lexer {
             match("\\.");
             return chars.emit(Token.Type.OPERATOR);
         }
+
         if(peek("[<>!=]")){
             match("[<>!=]");
             if (peek("=")){
@@ -237,8 +238,8 @@ public final class Lexer {
 
             return chars.emit(Token.Type.OPERATOR);
         }
-        if(peek("[^A-Za-z0-9]")){
-            match("[^A-Za-z0-9]");
+        if(peek(".")){
+            match(".");
             return chars.emit(Token.Type.OPERATOR);
         }
        throw new ParseException("Invalid characters", chars.index);

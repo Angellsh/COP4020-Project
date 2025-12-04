@@ -235,6 +235,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 throw new RuntimeException("Not a boolean type.");
             }
             if ((left.getValue().equals(true)))
+
                     res = true;
             else{
                 Environment.PlcObject right = visit(ast.getRight());
@@ -407,7 +408,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 res = false ? (left.getValue().equals(right.getValue()) ) : true;
                 break;
             default:
-                throw new RuntimeException("No binary operation like this");
+                throw new RuntimeException("No such binary operation defined.");
         };
         return Environment.create(res);
     }
