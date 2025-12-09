@@ -35,19 +35,22 @@ public final class Parser {
     public Ast.Source parseSource() throws ParseException {
 
 
-        List<Ast.Field>  fields = new ArrayList<>();
+            List<Ast.Field> fields = new ArrayList<>();
 
-        List<Ast.Method> methods = new ArrayList<>();
+            List<Ast.Method> methods = new ArrayList<>();
 
-        while(match("LET")){
-            fields.add(parseField());
-        }
-        while(match("DEF")){
-            methods.add(parseMethod());
-       }
-        if(tokens.has(0)){
-            throw new ParseException("Invalid syntax", handleIndex());}
-        return new Ast.Source(fields, methods);
+            while (peek("LET")) {
+                fields.add(parseField());
+            }
+            while (peek("DEF")) {
+                methods.add(parseMethod());
+            }
+            if (tokens.has(0)) {
+                throw new ParseException("Invalid syntax", handleIndex());
+            }
+            return new Ast.Source(fields, methods);
+
+
 
     }
 
@@ -57,7 +60,7 @@ public final class Parser {
      */
     public Ast.Field parseField() throws ParseException {
         //field ::= 'LET' 'CONST'? identifier ('=' expression)? ';'
-        if (match("LET")){}
+        match("LET");
 
         boolean constant = false;
         String typename =null;
@@ -107,7 +110,7 @@ public final class Parser {
             List<String> params = new ArrayList<>();
             List<String> types = new ArrayList<>();
 
-        if (match("DEF")){}
+        match("DEF");
 
         String name;
         String returnType = null;
@@ -116,20 +119,24 @@ public final class Parser {
                 name = tokens.get(-1).getLiteral();
 
                 if (match("(")){
-                    if(match(Token.Type.IDENTIFIER)){ //optional
+                    if(peek(Token.Type.IDENTIFIER) && !peek("DO")){
+                        match(Token.Type.IDENTIFIER);
+                        //optional
                         params.add(tokens.get(-1).getLiteral());
 
                         if(match(":")){
                             if (match(Token.Type.IDENTIFIER)) {
                                 types.add(tokens.get(-1).getLiteral());
                             }
-                            else
-                                throw new ParseException("Type is missing", handleIndex());
+                            else {
 
+                                throw new ParseException("Type is missing", handleIndex());
+                            }
                         }
-                        else
+                        else {
                             throw new ParseException("Method type must be declared.", handleIndex());
 
+                        }
                         while(match(",") && match(Token.Type.IDENTIFIER)){
                             params.add(tokens.get(-1).getLiteral());
                             if(match(":")){
@@ -143,7 +150,7 @@ public final class Parser {
                         }
                     }
                     if(!match(")")){
-                        throw new ParseException("Must have a closing ')'",handleIndex());
+                        throw new ParseException("Must have a closing ')'", handleIndex());
                     }
                 }
                 else
@@ -167,7 +174,7 @@ public final class Parser {
 
             }
             else
-                throw new ParseException("'DO' is missing", handleIndex());
+                throw new ParseException("Missing 'DO'", handleIndex());
 
     }
 
@@ -427,10 +434,6 @@ public final class Parser {
             Ast.Expression right = parseEqualityExpression();
             left = new Ast.Expression.Binary(operator, left, right);
             }
-
-       // if (match("&&") || match( "||")) { //temporary
-        //    throw new ParseException("Incorrect operator", handleIndex());
-      //  }
 
         return left;
     }

@@ -15,11 +15,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
             System.out.println(args.get(0).getValue());
             return Environment.NIL;
         });
-        StringWriter writer = new StringWriter();
-        scope.defineFunction("log", 1, args -> {
-            writer.write(String.valueOf(args.get(0).getValue()));
-            return args.get(0);
-        });
+
 
     }
     public Scope getScope() {
